@@ -180,7 +180,8 @@ func main() {
 	mux.HandleFunc("/multiply", multiplyHandler)
 	mux.HandleFunc("/divide", divideHandler)
 
-	wrappedMux := NewLogger(mux)
+	LoggerMux := NewLogger(mux)
+	rateLimiterMux := NewRateLimiter(LoggerMux, 10, 5)
 
-	log.Fatal(http.ListenAndServe(":8080", wrappedMux))
+	log.Fatal(http.ListenAndServe(":8080", rateLimiterMux))
 }
