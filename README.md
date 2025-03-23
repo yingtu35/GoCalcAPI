@@ -23,9 +23,14 @@ git clone https://github.com/yingtu35/GoCalcAPI.git
 cd GoCalcAPI
 ```
 
-2. Run the server
+2. Run the server directly or build the binary
 ```bash
-go run .
+go run cmd/server/main.go
+```
+or
+```bash
+go build -o GoCalcAPI cmd/server/main.go
+./GoCalcAPI
 ```
 
 3. Send a request
