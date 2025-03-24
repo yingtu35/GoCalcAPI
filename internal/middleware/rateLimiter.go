@@ -12,6 +12,7 @@ type RateLimiter struct {
 	BurstyLimit   int            // The number of bursty requests allowed
 	BurstyLimiter chan time.Time // The channel to manage the bursty requests
 	Ticker        *time.Ticker   // The ticker to add tokens
+	done          chan struct{}  // The channel to stop the ticker
 }
 
 func (r *RateLimiter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -32,6 +33,11 @@ func (r *RateLimiter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (r *RateLimiter) Stop() {
+	r.Ticker.Stop()
+	close(r.done)
+}
+
 func NewRateLimiter(next http.Handler, limit int, burstyLimit int) *RateLimiter {
 
 	burstyLimiter := make(chan time.Time, burstyLimit)
@@ -40,12 +46,21 @@ func NewRateLimiter(next http.Handler, limit int, burstyLimit int) *RateLimiter 
 	tickInterval := time.Second / time.Duration(limit)
 	ticker := time.NewTicker(tickInterval)
 
+	done := make(chan struct{})
+
 	// create a goroutine to manage the burstyLimiter
 	go func() {
-		for t := range ticker.C {
+		for {
 			select {
-			case burstyLimiter <- t:
-			default:
+			case t := <-ticker.C:
+				select {
+				case burstyLimiter <- t:
+					// add a token to the burstyLimiter
+				default:
+					// if the burstyLimiter is full, do nothing
+				}
+			case <-done:
+				return // stop the goroutine
 			}
 		}
 	}()
@@ -56,5 +71,6 @@ func NewRateLimiter(next http.Handler, limit int, burstyLimit int) *RateLimiter 
 		BurstyLimit:   burstyLimit,
 		BurstyLimiter: burstyLimiter,
 		Ticker:        ticker,
+		done:          done,
 	}
 }
